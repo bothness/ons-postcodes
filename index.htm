@@ -1,0 +1,118 @@
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>ONS Linked Data Postcode Query</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css"
+    integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+</head>
+
+<body>
+  <div class="container">
+    <h2 class="mt-4">Postcode Query Test</h2>
+    <div><small>Using the <a href="http://statistics.data.gov.uk/sparql" target="_blank">ONS Linked Data API</a>.</small></div>
+    <div class="form-inline mt-4">
+        <select id="geoselect" name="geoselect"  class="form-control mr-2"></select>
+        <input type="text" id="pcode" placeholder="Type a postcode..." class="form-control mr-2" />
+        <input type="button" id="link" value="Search" class="btn btn-info" />
+    </div>
+    <div id="result" class="mt-4"></div>
+
+  </div>
+
+  <script>
+    // Define chunks of URL to query API
+    const url = [
+      'http://statistics.data.gov.uk/sparql.json?query=SELECT+%3Fname+%3Flat+%3Flng%0AWHERE+%7B%0A%3Chttp%3A%2F%2Fstatistics.data.gov.uk%2Fid%2Fpostcode%2Funit%2F',
+      '%3E+%3Chttp%3A%2F%2Fstatistics.data.gov.uk%2Fdef%2Fspatialrelations%2Fwithin%23',
+      '%3E+%3Fmsoa+%3B%0A%3Chttp%3A%2F%2Fwww.w3.org%2F2003%2F01%2Fgeo%2Fwgs84_pos%23lat%3E+%3Flat+%3B%0A%3Chttp%3A%2F%2Fwww.w3.org%2F2003%2F01%2Fgeo%2Fwgs84_pos%23long%3E+%3Flng+.%0A%3Fmsoa+%3Chttp%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23label%3E+%3Fname+.%0A%7D%0ALIMIT+1'
+    ];
+
+    // Define geography options
+    // Note that these are statistical geographies that are queried in the form /def/spatialrelations/within#{code}
+    // Most other geographies need a "best fit" query form, like /def/hierarchy/best-fit#{code}
+    const geographies = [
+      {
+        'code': 'outputarea',
+        'label': 'OA'
+      },
+      {
+        'code': 'superoutputarealowerlayer',
+        'label': 'LSOA'
+      },
+      {
+        'code': 'superoutputareamiddlelayer',
+        'label': 'MSOA'
+      }
+    ];
+
+    // Define key DOM elements
+    const area = document.getElementById('geoselect');
+    const query = document.getElementById('pcode');
+    const result = document.getElementById('result');
+    const button = document.getElementById('link');
+
+    // Define blank object to hold search result (this isn't necessary, but make debugging easier)
+    var json = {};
+
+    // FUNCTION TO RENDER SEARCH RESULT
+    function updateResult(name, lat, lng) {
+      let nameText = '<p>Area: ' + name + '</p>';
+      let coordsText = '<p>Lat/lng: <a href="https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng + '&zoom=14" target="_blank">' + lat + ', ' + lng + '</a></p>';
+      result.innerHTML = nameText + coordsText;
+    }
+
+    // FUNCTION TO GENERATE THE GEOGRAPHY LEVEL OPTIONS
+    function genOptions() {
+      let html = '';
+      for (geo in geographies) {
+        let selected = geo == 0 ? ' selected' : '';
+        html += '<option value="' + geographies[geo].code + '"' + selected + ' />' + geographies[geo].label + '</option>';
+      }
+      area.innerHTML = html;
+    };
+
+    // FUNCTION TO QUERY API
+    function search(postcode, geography) {
+      // Process postcode
+      postcode = postcode.replace(' ', '');
+      postcode = postcode.toUpperCase();
+
+      // Construct query URL
+      let apiurl = url[0] + postcode + url[1] + geography + url[2];
+      console.log(apiurl);
+
+      // Query the API
+      fetch(apiurl)
+        .then(response => response.json())
+        .then(data => {
+          console.log(data);
+          if (data.results.bindings[0]) {
+            // If API response has data, render it (converting lat/lng strings to numbers)
+            json.name = data.results.bindings[0].name.value;
+            json.lat = parseFloat(data.results.bindings[0].lat.value);
+            json.lng = parseFloat(data.results.bindings[0].lng.value);
+            updateResult(json.name, json.lat, json.lng);
+          } else {
+            // If no data, render error message
+            result.innerHTML = '<p>Invalid postcode. Please search again.</p>';
+          }
+        });
+    };
+
+    // FUNCTION TO PASS DATA TO SEARCH FUNCTION
+    function doSearch() {
+      search(query.value, area.value);
+    }
+
+    // RENDER GEOGRAPHY OPTIONS
+    genOptions();
+
+    // ADD EVENT LISTENER TO SEARCH BOX
+    query.onchange = doSearch;
+    button.onclick = doSearch;
+
+  </script>
+</body>
+
+</html>
