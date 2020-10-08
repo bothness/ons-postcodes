@@ -20,10 +20,11 @@
 
   </div>
 
+  <script src="https://d3js.org/d3-dsv.v1.min.js"></script>
   <script>
     // Define chunks of URL to query API
     const url = [
-      'http://statistics.data.gov.uk/sparql.json?query=SELECT+%3Fname+%3Flat+%3Flng%0AWHERE+%7B%0A%3Chttp%3A%2F%2Fstatistics.data.gov.uk%2Fid%2Fpostcode%2Funit%2F',
+      'https://pmd3-production-drafter-onsgeo.publishmydata.com/v1/sparql/live?query=SELECT+%3Fname+%3Flat+%3Flng%0AWHERE+%7B%0A%3Chttp%3A%2F%2Fstatistics.data.gov.uk%2Fid%2Fpostcode%2Funit%2F',
       '%3E+%3Chttp%3A%2F%2Fstatistics.data.gov.uk%2Fdef%2Fspatialrelations%2Fwithin%23',
       '%3E+%3Fmsoa+%3B%0A%3Chttp%3A%2F%2Fwww.w3.org%2F2003%2F01%2Fgeo%2Fwgs84_pos%23lat%3E+%3Flat+%3B%0A%3Chttp%3A%2F%2Fwww.w3.org%2F2003%2F01%2Fgeo%2Fwgs84_pos%23long%3E+%3Flng+.%0A%3Fmsoa+%3Chttp%3A%2F%2Fwww.w3.org%2F2000%2F01%2Frdf-schema%23label%3E+%3Fname+.%0A%7D%0ALIMIT+1'
     ];
@@ -84,14 +85,15 @@
 
       // Query the API
       fetch(apiurl)
-        .then(response => response.json())
+        .then(response => response.text())
+        .then(string => d3.csvParse(string))
         .then(data => {
-          console.log(data);
-          if (data.results.bindings[0]) {
+          if (data[0]) {
+            console.log(data);
             // If API response has data, render it (converting lat/lng strings to numbers)
-            json.name = data.results.bindings[0].name.value;
-            json.lat = parseFloat(data.results.bindings[0].lat.value);
-            json.lng = parseFloat(data.results.bindings[0].lng.value);
+            json.name = data[0].name;
+            json.lat = parseFloat(data[0].lat);
+            json.lng = parseFloat(data[0].lng);
             updateResult(json.name, json.lat, json.lng);
           } else {
             // If no data, render error message
